@@ -1,0 +1,40 @@
+# ============ 凭据与隐私（绝对禁止提交）============
+登录信息.md
+登录信息.txt
+protocol/config.json
+*.credential
+*cookie*
+*.session
+
+# ============ 构建产物 ============
+bin/
+obj/
+publish/
+*.user
+*.suo
+*.pdb
+*.exe
+*.dll
+*.cache
+
+# ============ 旧版本 / 试验目录 ============
+CampusAutoLogin/
+qa-iconcheck/
+qa-synctx-test/
+downloads/
+verify-shot*.png
+
+# ============ Python ============
+__pycache__/
+*.pyc
+.venv/
+
+# ============ WorkBuddy 本地目录 ============
+.workbuddy/
+
+# ============ 编辑器 / 系统 ============
+.vs/
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini

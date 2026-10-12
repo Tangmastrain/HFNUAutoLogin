@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>CampusAutoLogin2.0</AssemblyName>
+    <RootNamespace>CampusAutoLogin</RootNamespace>
+    <Version>2.0.0</Version>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <Product>校园网自动登录</Product>
+    <AssemblyTitle>校园网自动登录</AssemblyTitle>
+    <Description>华为 ePortal (ACSetting) 校园网自动登录工具</Description>
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- DPAPI 凭据加密 -->
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
+    <!-- PowerModeChanged 休眠唤醒事件 -->
+    <PackageReference Include="Microsoft.Win32.SystemEvents" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 校徽图标：同时作为 exe 图标与托盘底图（按需取指定尺寸帧） -->
+    <EmbeddedResource Include="app.ico" LogicalName="CampusAutoLogin.app.ico" />
+  </ItemGroup>
+
+</Project>
