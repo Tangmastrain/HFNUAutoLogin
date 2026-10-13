@@ -32,9 +32,28 @@
 
 ## 下载
 
-前往 [Releases](../../releases) 下载 `CampusAutoLogin2.0.exe`。
+前往 [Releases](https://github.com/Tangmastrain/CampusAutoLogin2.0/releases/latest) 下载 `CampusAutoLogin2.0-fd-win-x64.zip`。
 
-**单文件自包含，双击即用**，无需安装 .NET 运行时。
+**框架依赖版**（推荐，6.8 MB）—— 解压后运行 `CampusAutoLogin2.0.exe`。
+
+> **需要 .NET 8 Desktop Runtime**。没有的话：
+> - 命令行一键装：`winget install Microsoft.DotNet.DesktopRuntime.8`
+> - 或手动下载：<https://dotnet.microsoft.com/download/dotnet/8.0>（选 **Desktop Runtime** x64）
+
+### 想要免安装运行时的版本？
+
+自己构建自包含单文件版（约 75 MB，无需任何运行时）：
+
+```bash
+dotnet publish CampusAutoLogin2.0/CampusAutoLogin2.0.csproj \
+  -c Release -r win-x64 \
+  --self-contained true \
+  -p:PublishSingleFile=true \
+  -p:IncludeNativeLibrariesForSelfExtract=true \
+  -o CampusAutoLogin2.0/publish
+```
+
+需要 .NET 8 SDK。
 
 > 系统要求：Windows 10 1809 (build 17763) 或更高。
 
@@ -65,12 +84,15 @@
 ## 从源码构建
 
 ```bash
+# 框架依赖版（体积小，需 .NET 8 Desktop Runtime）
 dotnet publish CampusAutoLogin2.0/CampusAutoLogin2.0.csproj \
-  -c Release -r win-x64 \
-  --self-contained true \
+  -c Release -r win-x64 --self-contained false -o out
+
+# 自包含单文件版（约 75 MB，免运行时）
+dotnet publish CampusAutoLogin2.0/CampusAutoLogin2.0.csproj \
+  -c Release -r win-x64 --self-contained true \
   -p:PublishSingleFile=true \
-  -p:IncludeNativeLibrariesForSelfExtract=true \
-  -o CampusAutoLogin2.0/publish
+  -p:IncludeNativeLibrariesForSelfExtract=true -o out
 ```
 
 需要 .NET 8 SDK。
