@@ -1,10 +1,26 @@
-# 校园网自动登录 · CampusAutoLogin 2.0
+# 合肥师范学院 锦绣校区 校园网自动登录
 
 一个常驻托盘、无人值守的 Windows 校园网自动登录工具。开机自动醒来 → 检查网络 → 掉线立即重新认证。
 
-> 协议逆向：华为 **ePortal (ACSetting)** Web Portal · HTTP · 密码明文（`enMd5=0`）
+> **仅适用于合肥师范学院锦绣校区。**
+>
+> 认证服务器为 `192.168.1.100`，协议为华为 **ePortal (ACSetting)** Web Portal。
+> 其他校区、其他学校的认证地址与协议参数均不相同，**直接拿去用不会有任何效果**。
 
 ![主界面](CampusAutoLogin2.0/shots/main-connected.png)
+
+---
+
+## 适用范围
+
+| 项 | 值 |
+|---|---|
+| 学校 | 合肥师范学院（HFNU） |
+| 校区 | **锦绣校区** |
+| 认证服务器 | `192.168.1.100:801` |
+| 协议 | 华为 ePortal (ACSetting) |
+
+> ⚠️ 不要在合肥师范学院其他校区使用，也不要用于其他学校 —— 参数对不上，程序不会工作。
 
 ---
 
@@ -19,20 +35,9 @@
 
 ---
 
-## 2.0 相对 1.2.2 的变化
-
-- 横幅**去掉连接时间，只保留状态**，更清爽
-- 「启动时隐藏窗口」**默认改为关闭**，首次运行更直观
-- 与 1.x **完全隔离**，可并存：
-  - 独立互斥体
-  - 独立配置目录 `%APPDATA%\CampusAutoLogin2.0`
-  - 独立自启项 `CampusAutoLogin2.0`
-
----
-
 ## 下载
 
-前往 [Releases](https://github.com/Tangmastrain/CampusAutoLogin2.0/releases/latest) 下载 `CampusAutoLogin2.0-fd-win-x64.zip`。
+前往 [Releases](https://github.com/Tangmastrain/HFNUAutoLogin/releases/latest) 下载 `CampusAutoLogin2.0-fd-win-x64.zip`。
 
 **框架依赖版**（推荐，6.8 MB）—— 解压后运行 `CampusAutoLogin2.0.exe`。
 
@@ -75,7 +80,7 @@ dotnet publish CampusAutoLogin2.0/CampusAutoLogin2.0.csproj \
 本程序以**密码明文**方式提交到校园网 ePortal 认证接口（服务端要求，`enMd5=0`）。
 因此：
 
-- 所有网络请求**仅限校园网内网**（`192.168.1.100`），不经过任何第三方
+- 所有网络请求**仅限合肥师范学院锦绣校区内网**（`192.168.1.100`），不经过任何第三方
 - 账号密码本地使用 **Windows DPAPI** 加密存储，绑定当前用户
 - 程序不含任何遥测、上报、外传逻辑
 
@@ -115,4 +120,6 @@ CampusAutoLogin2.0/
 
 ## 免责声明
 
-仅供个人在**已获授权的校园网络**内使用。请遵守所在学校网络使用规定。
+**本工具仅面向合肥师范学院锦绣校区的师生**，用于在已获授权的校园网络内自动完成登录认证。
+
+请在遵守学校网络使用规定的前提下使用。*未经授权，不得用于其他学校或校区的网络。*
