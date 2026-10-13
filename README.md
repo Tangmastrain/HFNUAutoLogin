@@ -37,7 +37,7 @@
 
 ## 下载
 
-前往 [Releases](https://github.com/Tangmastrain/HFNUAutoLogin/releases/latest) 下载 `CampusAutoLogin2.0-fd-win-x64.zip`。
+前往 [Releases](https://github.com/Tangmastrain/HFNUAutoLogin/releases/latest) 下载 `HFNUAutoLogin-fd-win-x64.zip`。
 
 **框架依赖版**（推荐，6.8 MB）—— 解压后运行 `CampusAutoLogin2.0.exe`。
 
