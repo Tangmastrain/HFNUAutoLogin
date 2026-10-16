@@ -37,31 +37,16 @@
 
 ## 下载
 
-前往 [Releases](https://github.com/Tangmastrain/HFNUAutoLogin/releases/latest) 下载 `HFNUAutoLogin-fd-win-x64.zip`。
+前往 [Releases](https://github.com/Tangmastrain/HFNUAutoLogin/releases/latest) 下载：
 
-**框架依赖版**（推荐，6.8 MB）—— 解压后运行 `CampusAutoLogin2.0.exe`。
+| 文件 | 大小 | 说明 |
+|---|---|---|
+| `HFNUAutoLogin-fd-win-x64.zip` | 6.8 MB | **框架依赖版**（推荐），解压后运行 `CampusAutoLogin2.0.exe` |
+| `HFNUAutoLogin-selfcontained-win-x64.exe` | 74.7 MB | **自包含单文件版**，免运行时，双击即用 |
 
-> **需要 .NET 8 Desktop Runtime**。没有的话：
+> **框架依赖版需要 .NET 8 Desktop Runtime**。没有的话：
 > - 命令行一键装：`winget install Microsoft.DotNet.DesktopRuntime.8`
 > - 或手动下载：<https://dotnet.microsoft.com/download/dotnet/8.0>（选 **Desktop Runtime** x64）
-
-### 想要免安装运行时的版本？
-
-自己构建自包含单文件版（约 75 MB，无需任何运行时）：
-
-```bash
-dotnet publish CampusAutoLogin2.0/CampusAutoLogin2.0.csproj \
-  -c Release -r win-x64 \
-  --self-contained true \
-  -p:PublishSingleFile=true \
-  -p:IncludeNativeLibrariesForSelfExtract=true \
-  -p:EnableCompressionInSingleFile=true \
-  -o CampusAutoLogin2.0/publish
-```
-
-> `EnableCompressionInSingleFile` 可把单文件从 ~180 MB 压到 ~75 MB，务必带上。
-
-需要 .NET 8 SDK。
 
 > 系统要求：Windows 10 1809 (build 17763) 或更高。
 
@@ -112,6 +97,8 @@ dotnet publish CampusAutoLogin2.0/CampusAutoLogin2.0.csproj \
 ```
 
 需要 .NET 8 SDK。
+
+> 自包含单文件版务必带 `-p:EnableCompressionInSingleFile=true`，否则体积会从 ~75 MB 涨到 ~180 MB。
 
 ---
 
