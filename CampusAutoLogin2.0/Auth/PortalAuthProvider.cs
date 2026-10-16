@@ -50,6 +50,13 @@ public sealed class PortalAuthProvider : IAuthProvider
     private readonly HttpClient _plain;
     private readonly Func<AppConfig> _cfg;
 
+    /// <summary>
+    /// 最近一次探测到的 Portal 动态参数。注销时本机在线 → AC 不劫持 → DiscoverAsync 探不到，
+    /// 用登录时缓存的参数比 GetLocalIp 回退可靠（多网卡机器上 UDP 选路可能拿到虚拟网卡 IP）。
+    /// 引用赋值原子，跨线程读到旧值无害。
+    /// </summary>
+    private Dictionary<string, string>? _lastSeenParams;
+
     public string Name => "Portal";
 
     public PortalAuthProvider(Func<AppConfig> cfg)
@@ -69,6 +76,8 @@ public sealed class PortalAuthProvider : IAuthProvider
     {
         var cfg = _cfg();
         var p = await DiscoverAsync(ct);
+        if (p.ContainsKey("wlanuserip"))
+            _lastSeenParams = p; // 缓存：注销时在线探不到参数，回退用（见 LogoutAsync）
 
         string ip = Str(p, "wlanuserip", GetLocalIp(cfg.PortalHost));
         string acip = Str(p, "wlanacip", cfg.WlanAcIp);
@@ -149,6 +158,10 @@ public sealed class PortalAuthProvider : IAuthProvider
     {
         var cfg = _cfg();
         var p = await DiscoverAsync(ct);
+        // 在线时探测不到劫持参数 → 回退到最近一次登录时缓存的参数，最后才轮到 GetLocalIp
+        if (!p.ContainsKey("wlanuserip") && _lastSeenParams is not null)
+            p = _lastSeenParams;
+
         string ip = Str(p, "wlanuserip", GetLocalIp(cfg.PortalHost));
         string acip = Str(p, "wlanacip", cfg.WlanAcIp);
         string acname = Str(p, "wlanacname", string.IsNullOrEmpty(cfg.WlanAcName) ? "me60" : cfg.WlanAcName);
@@ -158,19 +171,26 @@ public sealed class PortalAuthProvider : IAuthProvider
                   $"&wlanuserip={Uri.EscapeDataString(ip)}&wlanacip={Uri.EscapeDataString(acip)}" +
                   $"&wlanacname={Uri.EscapeDataString(acname)}&ip={Uri.EscapeDataString(ip)}";
 
-        using var req = new HttpRequestMessage(HttpMethod.Post, url);
+        // 注销为 GET（与抓包及 protocol/portal_login.py 一致）；响应体读掉以释放连接，但不作为判据
+        using var req = new HttpRequestMessage(HttpMethod.Get, url);
         req.Headers.TryAddWithoutValidation("User-Agent", UserAgent);
         req.Headers.Referrer = new Uri($"http://{cfg.PortalHost}/");
         try
         {
             using var resp = await _plain.SendAsync(req, ct);
-            return AuthResult.Ok("已注销");
+            _ = await resp.Content.ReadAsByteArrayAsync(ct);
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             return AuthResult.NetFail("注销请求失败：" + ex.Message);
         }
+
+        // 与登录同一最终判据：注销后复测连通性，如实上报（不再无脑报「已注销」）
+        await Task.Delay(1000, ct);
+        return await ConnMonitor.IsOnlineAsync(ct)
+            ? AuthResult.NetFail("注销请求已发出，但网络仍在线（注销可能未生效）")
+            : AuthResult.Ok("已注销");
     }
 
     // ------------------------------------------------------------ 动态参数探测
@@ -268,22 +288,46 @@ public sealed class PortalAuthProvider : IAuthProvider
         }
     }
 
-    /// <summary>本机物理网卡 MAC，格式 AA-BB-CC-DD-EE-FF（探测不到时的回退）。</summary>
+    /// <summary>
+    /// 本机物理网卡 MAC，格式 AA-BB-CC-DD-EE-FF（探测不到时的回退）。
+    /// 优先选「非虚拟且有网关」的网卡：Hyper-V/WSL/VMware 的虚拟网卡同为 Ethernet 类型，
+    /// 多网卡机器上选错会导致登录/注销定位到错误会话。
+    /// </summary>
     private static string GetLocalMac()
     {
         try
         {
+            NetworkInterface? fallback = null;
             foreach (var nic in NetworkInterface.GetAllNetworkInterfaces())
             {
                 if (nic.OperationalStatus != OperationalStatus.Up) continue;
                 if (nic.NetworkInterfaceType is NetworkInterfaceType.Loopback or NetworkInterfaceType.Tunnel) continue;
-                var ha = nic.GetPhysicalAddress().GetAddressBytes();
-                if (ha.Length != 6 || ha.All(b => b == 0)) continue;
-                return string.Join("-", ha.Select(b => b.ToString("X2")));
+                if (IsVirtualAdapter(nic)) continue;
+                fallback ??= nic; // 第一个非虚拟网卡作保底
+                if (nic.GetIPProperties().GatewayAddresses.Count > 0)
+                    return FormatMac(nic.GetPhysicalAddress()); // 有网关 = 真正承载默认路由的物理网卡
             }
+            if (fallback is not null)
+                return FormatMac(fallback.GetPhysicalAddress());
         }
         catch { }
         return "00-00-00-00-00-00";
+    }
+
+    /// <summary>按网卡描述过滤常见虚拟适配器（大小写不敏感）。</summary>
+    private static bool IsVirtualAdapter(NetworkInterface nic)
+    {
+        string desc = nic.Description;
+        return desc.Contains("Hyper-V", StringComparison.OrdinalIgnoreCase)     // Hyper-V 虚拟交换机/WSL
+            || desc.Contains("Virtual", StringComparison.OrdinalIgnoreCase)   // VMware/VirtualBox/vEthernet
+            || desc.Contains("TAP", StringComparison.OrdinalIgnoreCase)       // OpenVPN TAP
+            || desc.Contains("WSL", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string FormatMac(PhysicalAddress pa)
+    {
+        var ha = pa.GetAddressBytes();
+        return ha.Length == 6 ? string.Join("-", ha.Select(b => b.ToString("X2"))) : "00-00-00-00-00-00";
     }
 
     private static string Str(Dictionary<string, string> p, string key, string fallback) =>

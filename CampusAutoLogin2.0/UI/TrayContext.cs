@@ -51,10 +51,56 @@ public sealed class TrayContext : ApplicationContext
             if (e.Button == MouseButtons.Left && e.Clicks == 1) _main.ShowMain();
         };
 
-        Logger.Instance.Info($"启动完成 v2.0.0，模式=托盘常驻，hideOnStartup={cfg.HideOnStartup}");
+        // 版本号派生自 csproj InformationalVersion（带 "+<提交哈希>" 后缀，需截断）
+        Logger.Instance.Info($"启动完成 v{Application.ProductVersion.Split('+')[0]}，模式=托盘常驻，hideOnStartup={cfg.HideOnStartup}");
         _coord.Start();
         if (!cfg.AutoLogin)
             _coord.Pause(); // 上次关闭时关了自动登录 → 本次启动保持暂停
+
+        // v2.0.3 自启自检（取代 v2.0.2 的「升级迁移」判定）：cfg.AutoStart 为真时，每次启动都
+        // 核对三条自启轨道（开机任务 / 登录任务 / 注册表 Run 键）。旧逻辑只在「已有登录轨道、
+        // 只差开机轨道」时才补装，三轨被整体清除后返回 false → 开机自启静默失效（2026-10-16 实测：
+        // 任务被清、config 仍为 true、启动无任何补装动作、日志零记录）。改为缺失即重建。
+        // 静默后台执行，绝不阻塞 UI。
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                if (!cfg.AutoStart) return;
+
+                bool anyInstalled = AutoStart.IsInstalled();
+                bool bootMissing = !AutoStart.BootTaskExists();
+
+                // 覆盖两种缺失：① 三条轨道全被外部清除（本次事故）② 只有登录轨道、缺开机轨道
+                // （非管理员首次运行 / 由 v2.0.1 升级上来）。Install 幂等，非管理员时自然只保住登录轨道。
+                if (!anyInstalled || bootMissing)
+                {
+                    bool ok = AutoStart.Install(cfg.StartupDelaySec);
+                    if (!anyInstalled)
+                        Logger.Instance.Info(ok
+                            ? "AUTOSTART 自检：三条自启轨道均缺失，已重建"
+                            : "AUTOSTART 自检：三条自启轨道均缺失，且重建失败（三轨均不可用）");
+
+                    bool bootOk = AutoStart.BootTrackInstalled;
+                    if (ok && (bootOk || !anyInstalled))
+                        _ui.Post(_ => _icon.ShowBalloonTip(4000, BaseText,
+                            bootOk ? "开机自启已自动恢复（开机即联网）" : "登录自启已自动恢复",
+                            ToolTipIcon.Info), null);
+                }
+
+                // 开机轨道在但机器域凭据副本丢失 → SYSTEM 实例解不开密码，静默补一份（幂等）
+                if (AutoStart.BootTaskExists() && !_credStore.BootCopyExists())
+                {
+                    bool credOk = _credStore.WriteBootCopy();
+                    Logger.Instance.Info("AUTOSTART 开机轨道在但机器域凭据副本缺失，"
+                        + (credOk ? "已补导出" : "补导出失败（未保存密码？）"));
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Warn("AUTOSTART 自检异常：" + ex.Message);
+            }
+        });
 
         // 首次运行未配置账号 → 必弹主窗口；否则按「启动时隐藏窗口」决定
         if (!cfg.FirstRunDone || string.IsNullOrEmpty(cfg.Username))
@@ -68,7 +114,7 @@ public sealed class TrayContext : ApplicationContext
         var menu = new ContextMenuStrip();
         menu.Items.Add("打开主界面", null, (_, _) => _main.ShowMain());
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add("立即登录", null, (_, _) => _coord.TriggerNow());
+        menu.Items.Add("立即登录", null, (_, _) => _coord.RunOnceNow());
         menu.Items.Add("断开连接", null, async (_, _) => await _coord.LogoutAsync());
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("高级设置", null, (_, _) => ShowAdvancedSettings());
@@ -117,7 +163,7 @@ public sealed class TrayContext : ApplicationContext
             f.Activate();
             return;
         }
-        new SettingsForm(_cfgStore, _coord).Show();
+        new SettingsForm(_cfgStore, _coord).Show(_main); // 传 Owner：CenterParent 才有效
     }
 
     private void ExitApp()

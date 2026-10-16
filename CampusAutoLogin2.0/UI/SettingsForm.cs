@@ -17,6 +17,7 @@ public sealed class SettingsForm : Form
     private readonly TextBox _txtHost = new();
     private readonly TextBox _txtProgram = new();
     private readonly TextBox _txtAcName = new();
+    private readonly TextBox _txtAcIp = new();
     private readonly NumericUpDown _numInterval = new() { Minimum = 10, Maximum = 3600, Value = 60 };
     private readonly NumericUpDown _numDelay = new() { Minimum = 0, Maximum = 3600, Value = 30 };
     private readonly TextBox _txtSsid = new();
@@ -51,6 +52,7 @@ public sealed class SettingsForm : Form
         _txtHost.Text = cfg.PortalHost;
         _txtProgram.Text = cfg.PortalProgram;
         _txtAcName.Text = cfg.WlanAcName;
+        _txtAcIp.Text = cfg.WlanAcIp;
         _numInterval.Value = Math.Clamp(cfg.CheckIntervalSec, 10, 3600);
         _numDelay.Value = Math.Clamp(cfg.StartupDelaySec, 0, 3600);
         _txtSsid.Text = cfg.HotspotSsid;
@@ -59,6 +61,7 @@ public sealed class SettingsForm : Form
         UiTheme.ApplyInput(_txtHost);
         UiTheme.ApplyInput(_txtProgram);
         UiTheme.ApplyInput(_txtAcName);
+        UiTheme.ApplyInput(_txtAcIp);
         UiTheme.ApplyInput(_txtSsid);
         UiTheme.ApplyInput(_txtHotspotPass);
         UiTheme.ApplyInput(_numInterval);
@@ -90,6 +93,7 @@ public sealed class SettingsForm : Form
         AddRow(nt, "Portal 地址", _txtHost);
         AddRow(nt, "模板号", _txtProgram);
         AddRow(nt, "AC 名称", _txtAcName);
+        AddRow(nt, "AC IP（可选）", _txtAcIp);
         net.Controls.Add(nt);
         root.Controls.Add(net);
 
@@ -186,6 +190,7 @@ public sealed class SettingsForm : Form
         cfg.PortalHost = _txtHost.Text.Trim();
         cfg.PortalProgram = _txtProgram.Text.Trim();
         cfg.WlanAcName = _txtAcName.Text.Trim();
+        cfg.WlanAcIp = _txtAcIp.Text.Trim(); // 部分 AC 固件要求非空才能定位会话；探测不到时用它回退
         cfg.CheckIntervalSec = (int)_numInterval.Value;
         cfg.StartupDelaySec = (int)_numDelay.Value;
         cfg.HotspotSsid = _txtSsid.Text.Trim();
@@ -196,7 +201,7 @@ public sealed class SettingsForm : Form
             $"高级设置已保存 host={cfg.PortalHost} interval={cfg.CheckIntervalSec}s " +
             $"hotspotSsid={cfg.HotspotSsid}");
 
-        _coord.TriggerNow(); // 新检测间隔 / 热点配置立即生效
+        _coord.RefreshConfig(); // 新检测间隔 / 热点配置立即生效（不改变暂停状态）
         Close();
     }
 }

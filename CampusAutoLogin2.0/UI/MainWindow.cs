@@ -191,7 +191,9 @@ public sealed class MainWindow : Form
 
         var lblVersion = new Label
         {
-            Text = "v2.0.0",
+            // 跟随 csproj <Version>（避免硬编码漏改：2.0.2 时曾出现界面 2.0.1、程序已是 2.0.2）；
+            // ProductVersion 是 InformationalVersion，带 "+<提交哈希>" 后缀，截掉只留主版本号
+            Text = "v" + Application.ProductVersion.Split('+')[0],
             AutoSize = true,
             ForeColor = Color.FromArgb(0xD0, 0xD4, 0xDA), // 提高对比度（原 #9AA0A8 偏暗）
             BackColor = Color.Transparent,
@@ -514,21 +516,34 @@ public sealed class MainWindow : Form
                 _coord.Pause();
         };
 
-        _tgAutoStart.CheckedChanged += (_, _) =>
+        _tgAutoStart.CheckedChanged += async (_, _) =>
         {
             var cfg = _cfgStore.Load();
             cfg.AutoStart = _tgAutoStart.Checked;
             _cfgStore.Save(cfg);
-            bool installed = AutoStart.IsInstalled();
+            // schtasks 子进程单次最长 15s，必须移出 UI 线程，否则切开关时界面假死
+            bool installed = await Task.Run(AutoStart.IsInstalled);
             if (cfg.AutoStart && !installed)
             {
-                if (!AutoStart.Install(cfg.StartupDelaySec))
+                bool ok = await Task.Run(() => AutoStart.Install(cfg.StartupDelaySec));
+                if (!ok)
                     MessageBox.Show(this, "开机自启动设置失败（计划任务与注册表 Run 键均不可用）。",
                         "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                else if (AutoStart.BootTrackInstalled)
+                {
+                    // 开机轨道已装上 → 导出机器域凭据副本，否则 SYSTEM 开机实例解不开密码
+                    if (_credStore.WriteBootCopy())
+                        ShowHint("已设置开机自动登录：开机后无需登录 Windows 即自动联网");
+                    else
+                        ShowHint("开机任务已装，但未保存密码，开机模式暂不可用");
+                }
+                else
+                    ShowHint("已设置为登录后自动运行（管理员权限可启用免登录的开机运行）");
             }
             else if (!cfg.AutoStart && installed)
             {
-                AutoStart.Uninstall();
+                await Task.Run(AutoStart.Uninstall);
+                _credStore.RemoveBootCopy(); // 不留机器级密文
             }
         };
 
@@ -545,7 +560,7 @@ public sealed class MainWindow : Form
             cfg.HotspotEnabled = _tgHotspot.Checked;
             _cfgStore.Save(cfg);
             if (cfg.HotspotEnabled)
-                _coord.TriggerNow(); // 当前在线则经调度循环立即尝试开热点
+                _coord.TriggerHotspotNow(); // 在线则立即尝试开热点（不改变登录调度/暂停状态）
             ShowHint(cfg.HotspotEnabled ? "将在联网后自动开启热点" : "已关闭自动开热点");
         };
     }
@@ -583,10 +598,15 @@ public sealed class MainWindow : Form
                 _cfgStore.Save(cfg);
 
                 if (_tgRemember.Checked)
+                {
                     _credStore.Save(new Credential(user, pass));
+                    // 密码变了 → 同步刷新开机模式的机器域副本（仅开机自启已开启时才有副本）
+                    if (cfg.AutoStart)
+                        _credStore.WriteBootCopy();
+                }
 
                 ShowHint("登录成功"); // 不用 emoji：WinForms Label 默认字体会渲染成方框
-                _coord.TriggerNow(); // 刷新状态并联动热点
+                _coord.RunOnceNow(); // 刷新状态并联动热点；单次语义，不偷偷恢复自动登录
             }
             else
             {
@@ -610,8 +630,8 @@ public sealed class MainWindow : Form
         _btnLogout.Enabled = false;
         try
         {
-            await _coord.LogoutAsync(); // 注销 + 暂停自动登录
-            ShowHint("已断开连接");
+            var r = await _coord.LogoutAsync(); // 注销（先取消在途登录）+ 暂停自动登录
+            ShowHint(r.Success ? "已断开连接" : "断开失败：" + r.Message);
         }
         catch (Exception ex)
         {
@@ -677,9 +697,13 @@ public sealed class MainWindow : Form
 
     // ------------------------------------------------ 底部状态栏
 
+    private int _clockTicks;
+
     private void TickClock()
     {
         _lblClock.Text = DateTime.Now.ToString("HH:mm:ss");
+        // IP 每 10 秒刷一次即可：每秒读 config.json + UDP 选路纯属浪费
+        if (_clockTicks++ % 10 != 0) return;
         string host = _cfgStore.Load().PortalHost;
         _lblIp.Text = string.IsNullOrEmpty(host) ? "未配置 Portal" : GetLocalIp(host);
     }

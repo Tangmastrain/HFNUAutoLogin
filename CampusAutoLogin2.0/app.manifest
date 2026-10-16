@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
+  <assemblyIdentity version="1.0.0.0" name="CampusAutoLogin2.0.app" />
+
+  <!--
+    v2.0.4：把「以管理员身份运行」编译进 exe 自身。
+    此前靠 HKCU\...\AppCompatFlags\Layers 的 `~ RUNASADMIN` 实现，该值绑定 exe 绝对路径，
+    exe 移动位置或换机器即失效。改为清单声明后，要求随 exe 走，可移植。
+
+    用途：开机自启的免登录轨道（schtasks /SC ONSTART /RU SYSTEM）与登录轨道（/RL HIGHEST）
+    需要管理员权限才能创建；以管理员启动时启动自检才能补齐这些轨道。
+    SYSTEM 计划任务拉起进程时不走 UAC，本清单对其无影响。
+  -->
+  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">
+    <security>
+      <requestedPrivileges xmlns="urn:schemas-microsoft-com:asm.v3">
+        <requestedExecutionLevel level="requireAdministrator" uiAccess="false" />
+      </requestedPrivileges>
+    </security>
+  </trustInfo>
+
+  <!-- 声明支持的 OS：Win10/11 同一 GUID，帮助系统正确识别、启用相应兼容行为 -->
+  <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
+    <application>
+      <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}" />
+    </application>
+  </compatibility>
+</assembly>

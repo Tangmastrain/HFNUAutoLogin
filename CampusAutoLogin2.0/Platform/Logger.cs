@@ -19,8 +19,13 @@ public sealed class Logger
 
     private Logger()
     {
-        _dir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CampusAutoLogin2.0", "logs");
+        // --boot 模式（SYSTEM 会话）没有用户的 %APPDATA%，Program.RunBootMode 在触碰
+        // Logger 之前把安装用户的数据目录写入本环境变量，这里优先读取。
+        var overrideDir = Environment.GetEnvironmentVariable("CampusAutoLogin2.0_DataDir");
+        var baseDir = string.IsNullOrEmpty(overrideDir)
+            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CampusAutoLogin2.0")
+            : overrideDir;
+        _dir = Path.Combine(baseDir, "logs");
         Directory.CreateDirectory(_dir);
         _path = Path.Combine(_dir, "app.log");
     }

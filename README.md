@@ -55,8 +55,11 @@ dotnet publish CampusAutoLogin2.0/CampusAutoLogin2.0.csproj \
   --self-contained true \
   -p:PublishSingleFile=true \
   -p:IncludeNativeLibrariesForSelfExtract=true \
+  -p:EnableCompressionInSingleFile=true \
   -o CampusAutoLogin2.0/publish
 ```
+
+> `EnableCompressionInSingleFile` 可把单文件从 ~180 MB 压到 ~75 MB，务必带上。
 
 需要 .NET 8 SDK。
 
@@ -72,6 +75,13 @@ dotnet publish CampusAutoLogin2.0/CampusAutoLogin2.0.csproj \
 4. 之后它就在托盘里待着，掉线自动重连
 
 配置与日志位置：`%APPDATA%\CampusAutoLogin2.0\`
+
+### 权限说明
+
+程序**请求以管理员身份运行**（清单 `requireAdministrator` 已编译进 exe）：创建「免登录开机自启」计划任务需要管理员权限。
+
+- 需求随 exe 走 —— 换目录、换机器都自带，无需再手工设置「以管理员身份运行」
+- 若 UAC 弹窗，请点「是」；若账户不在 Administrators 组，会自动回退为「登录后运行」
 
 ---
 
@@ -97,7 +107,8 @@ dotnet publish CampusAutoLogin2.0/CampusAutoLogin2.0.csproj \
 dotnet publish CampusAutoLogin2.0/CampusAutoLogin2.0.csproj \
   -c Release -r win-x64 --self-contained true \
   -p:PublishSingleFile=true \
-  -p:IncludeNativeLibrariesForSelfExtract=true -o out
+  -p:IncludeNativeLibrariesForSelfExtract=true \
+  -p:EnableCompressionInSingleFile=true -o out
 ```
 
 需要 .NET 8 SDK。
