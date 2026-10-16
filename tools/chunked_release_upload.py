@@ -4,6 +4,13 @@ GitHub Release 大文件分片上传。
 背景：本地到 uploads.github.com 上行约 70KB/s，单次 POST 传 78MB 会中途被掐断，
       服务端留下 digest=null 的半成品。改为 Content-Range 分片续传，断片可重试。
 
+⚠️ 已失效（2026-10-16 实测，勿再使用）：
+   GitHub 已不再接受 Content-Range 续传 —— 第 1 片创建资产成功，第 2 片起返回
+   400 "Multipart form data required"。官方文档明确：上传 release 资产只支持
+   「单次 POST 原始字节」，没有断点续传。大文件请用稳定网络单次
+   `gh release upload <tag> <file> --clobber`（本机方案见桌面
+   HFNUAutoLogin-v2.0.4-upload / upload.ps1）。
+
 用法: python chunked_release_upload.py <file> <release_id> <repo> <asset_name>
 """
 import json
