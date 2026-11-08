@@ -171,6 +171,15 @@ public sealed class Coordinator : IDisposable
                 _runOnce = false;
 
                 bool online = await ConnMonitor.IsOnlineAsync(ct);
+
+                // 防假在线：部分校园网对连通性探测地址放行/伪造 204，未认证时也会判「在线」。
+                // 已连接 = 真联网 且 AC 未劫持（探测到劫持说明未认证 → 走登录流程）。
+                if (online && !await _auth.IsPortalAuthenticatedAsync(authCt))
+                {
+                    _log("CONN 探测通过但检测到 AC 劫持（未认证的假在线），转入登录流程");
+                    online = false;
+                }
+
                 if (online)
                 {
                     _retry.Reset();
@@ -196,6 +205,17 @@ public sealed class Coordinator : IDisposable
 
                 if (r.Success)
                 {
+                    // Portal 应答成功≠真联网：若 AC 仍在劫持（探测地址被放行的假在线场景），
+                    // 按网络类失败退避重试，不得显示「已连接」
+                    if (!await _auth.IsPortalAuthenticatedAsync(authCt))
+                    {
+                        _log("AUTH Portal 应答成功但检测到 AC 劫持，按未联网处理");
+                        SetStatus("重试中…");
+                        int wait2 = _retry.Next();
+                        await CycleEndAsync(oneShot, wait2, ct);
+                        continue;
+                    }
+
                     _retry.Reset();
                     Interlocked.Exchange(ref _lastLoginTicks, DateTime.Now.ToBinary());
                     SetStatus("已连接");

@@ -367,7 +367,11 @@ public sealed class MainWindow : Form
         };
         t.Controls.Add(icon, 0, 0);
 
-        txt.Dock = DockStyle.Fill;
+        // 无边框文本框不能整行拉伸：Dock=Fill 会把它拉到容器全高，单行文本贴上沿显示
+        // → 视觉「输入内容偏上」。改为仅水平拉伸、垂直居中（不锚定上下边时
+        // TableLayoutPanel 会把控件在单元格内垂直居中），文字始终处于输入框中线。
+        txt.Dock = DockStyle.None;
+        txt.Anchor = AnchorStyles.Left | AnchorStyles.Right;
         txt.Margin = new Padding(10, 0, 0, 0);
         t.Controls.Add(txt, 1, 0);
 

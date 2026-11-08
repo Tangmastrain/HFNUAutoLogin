@@ -193,6 +193,43 @@ public sealed class PortalAuthProvider : IAuthProvider
             : AuthResult.Ok("已注销");
     }
 
+    // ------------------------------------------------------------ 认证态检测
+
+    /// <summary>
+    /// 校园网认证态检测：未认证时 AC 会对任意 HTTP 请求 302 劫持到 Portal 页。
+    /// 部分校园网对连通性探测地址（generate_204 等）直接放行/伪造 204，导致「只探外网」
+    /// 会把未认证误判为已联网 —— 用任意常规站点（百度）的劫持特征兜底区分。
+    /// 返回 false = 检测到劫持（未认证）；true = 未见劫持（已认证，或非校园网环境）。
+    /// 检测异常一律返回 true：辅助检测不得影响主流程。
+    /// </summary>
+    public async Task<bool> IsPortalAuthenticatedAsync(CancellationToken ct)
+    {
+        try
+        {
+            // 不跟随重定向才能读到 AC 的 302 劫持 Location
+            using var resp = await _noRedirect.GetAsync("http://www.baidu.com/", ct);
+            if (resp.StatusCode is HttpStatusCode.MovedPermanently
+                or HttpStatusCode.Found or HttpStatusCode.TemporaryRedirect)
+            {
+                var loc = resp.Headers.Location?.ToString() ?? "";
+                if (ExtractParams(loc).ContainsKey("wlanuserip") ||
+                    loc.Contains("eportal", StringComparison.OrdinalIgnoreCase))
+                    return false; // 被劫持到 Portal：未认证
+                return true;      // 与 Portal 无关的正常跳转不算劫持
+            }
+            if ((int)resp.StatusCode == 200)
+            {
+                var bytes = await resp.Content.ReadAsByteArrayAsync(ct);
+                var text = DecodeBody(resp.Content.Headers.ContentType?.CharSet, bytes);
+                if (ExtractParams(text).ContainsKey("wlanuserip"))
+                    return false; // 200 但内容是 Portal 劫持页
+            }
+        }
+        catch (OperationCanceledException) { throw; }
+        catch { }
+        return true;
+    }
+
     // ------------------------------------------------------------ 动态参数探测
 
     /// <summary>
