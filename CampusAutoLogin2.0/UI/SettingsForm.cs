@@ -6,7 +6,8 @@ namespace CampusAutoLogin.UI;
 
 /// <summary>
 /// 高级设置弹窗（主窗口 ⚙ / 托盘「高级设置」打开）：
-/// Portal 网络（地址/模板号/AC 名称）、调度（检测间隔/开机延迟）、移动热点（SSID/密码，≥8 位校验）。
+/// Portal 网络（地址/模板号/AC 名称）、调度（检测间隔/开机延迟）。
+/// 热点名称/密码不再在此配置（自动开启时沿用系统当前热点配置）。
 /// v1.2 起账号/开关等常用项移入主窗口，本窗口只收高级参数。
 /// </summary>
 public sealed class SettingsForm : Form
@@ -20,14 +21,6 @@ public sealed class SettingsForm : Form
     private readonly TextBox _txtAcIp = new();
     private readonly NumericUpDown _numInterval = new() { Minimum = 10, Maximum = 3600, Value = 60 };
     private readonly NumericUpDown _numDelay = new() { Minimum = 0, Maximum = 3600, Value = 30 };
-    private readonly TextBox _txtSsid = new();
-    private readonly TextBox _txtHotspotPass = new() { UseSystemPasswordChar = true };
-    private readonly Label _lblNote = new()
-    {
-        Text = "联网后将按此名称/密码自动开启热点；密码至少 8 位。",
-        AutoSize = true,
-        ForeColor = UiTheme.TextSecondary,
-    };
     private readonly Button _btnSave = new() { Text = "保存", AutoSize = true };
     private readonly Button _btnCancel = new() { Text = "取消", AutoSize = true };
 
@@ -55,15 +48,11 @@ public sealed class SettingsForm : Form
         _txtAcIp.Text = cfg.WlanAcIp;
         _numInterval.Value = Math.Clamp(cfg.CheckIntervalSec, 10, 3600);
         _numDelay.Value = Math.Clamp(cfg.StartupDelaySec, 0, 3600);
-        _txtSsid.Text = cfg.HotspotSsid;
-        _txtHotspotPass.Text = cfg.HotspotPassword;
 
         UiTheme.ApplyInput(_txtHost);
         UiTheme.ApplyInput(_txtProgram);
         UiTheme.ApplyInput(_txtAcName);
         UiTheme.ApplyInput(_txtAcIp);
-        UiTheme.ApplyInput(_txtSsid);
-        UiTheme.ApplyInput(_txtHotspotPass);
         UiTheme.ApplyInput(_numInterval);
         UiTheme.ApplyInput(_numDelay);
         UiTheme.ApplyPrimary(_btnSave);
@@ -104,15 +93,6 @@ public sealed class SettingsForm : Form
         AddRow(st, "开机延迟（秒）", _numDelay);
         sched.Controls.Add(st);
         root.Controls.Add(sched);
-
-        // ---- 移动热点卡片 ----
-        var hotspot = UiTheme.MakeCard("移动热点");
-        var ht = MakeTable();
-        AddRow(ht, "热点名称", _txtSsid);
-        AddRow(ht, "热点密码", _txtHotspotPass);
-        AddNoteRow(ht, _lblNote);
-        hotspot.Controls.Add(ht);
-        root.Controls.Add(hotspot);
 
         // ---- 按钮行 ----
         var flow = new FlowLayoutPanel
@@ -161,31 +141,8 @@ public sealed class SettingsForm : Form
         t.Controls.Add(input);
     }
 
-    private static void AddNoteRow(TableLayoutPanel t, Label lbl)
-    {
-        t.Controls.Add(new Label { AutoSize = true, Margin = new Padding(0) });
-        lbl.Anchor = AnchorStyles.Left;
-        lbl.Margin = new Padding(4, 4, 4, 4);
-        t.Controls.Add(lbl);
-    }
-
     private void OnSave()
     {
-        if (_txtSsid.Text.Trim().Length == 0)
-        {
-            MessageBox.Show(this, "请填写热点名称。", "提示",
-                MessageBoxButtons.OK, MessageBoxIcon.Information);
-            return;
-        }
-        // 热点密码 ≥8 位校验（Windows 移动热点要求）
-        if (_txtHotspotPass.Text.Length < 8)
-        {
-            MessageBox.Show(this, "热点密码至少需要 8 位。", "提示",
-                MessageBoxButtons.OK, MessageBoxIcon.Information);
-            _txtHotspotPass.Focus();
-            return;
-        }
-
         var cfg = _cfgStore.Load();
         cfg.PortalHost = _txtHost.Text.Trim();
         cfg.PortalProgram = _txtProgram.Text.Trim();
@@ -193,15 +150,12 @@ public sealed class SettingsForm : Form
         cfg.WlanAcIp = _txtAcIp.Text.Trim(); // 部分 AC 固件要求非空才能定位会话；探测不到时用它回退
         cfg.CheckIntervalSec = (int)_numInterval.Value;
         cfg.StartupDelaySec = (int)_numDelay.Value;
-        cfg.HotspotSsid = _txtSsid.Text.Trim();
-        cfg.HotspotPassword = _txtHotspotPass.Text;
         _cfgStore.Save(cfg);
 
         Logger.Instance.Info(
-            $"高级设置已保存 host={cfg.PortalHost} interval={cfg.CheckIntervalSec}s " +
-            $"hotspotSsid={cfg.HotspotSsid}");
+            $"高级设置已保存 host={cfg.PortalHost} interval={cfg.CheckIntervalSec}s");
 
-        _coord.RefreshConfig(); // 新检测间隔 / 热点配置立即生效（不改变暂停状态）
+        _coord.RefreshConfig(); // 新检测间隔立即生效（不改变暂停状态）
         Close();
     }
 }

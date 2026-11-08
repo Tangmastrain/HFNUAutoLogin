@@ -262,12 +262,10 @@ public sealed class Coordinator : IDisposable
             if (last != 0 && DateTime.UtcNow.Ticks - last < TimeSpan.FromMinutes(5).Ticks) return;
 
             Interlocked.Exchange(ref _lastHotspotAttemptTicks, DateTime.UtcNow.Ticks);
-            string ssid = cfg.HotspotSsid;
-            string pass = cfg.HotspotPassword;
 
             _ = Task.Run(async () =>
             {
-                bool ok = await HotspotManager.EnsureStartedAsync(ssid, pass);
+                bool ok = await HotspotManager.EnsureStartedAsync();
                 if (ok) _hotspotOkThisPeriod = true;
             });
         }

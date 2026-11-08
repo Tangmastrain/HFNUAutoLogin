@@ -39,7 +39,5 @@ public sealed class AppConfig
     public bool AutoLogin { get; set; } = true;          // 自动登录开关（关 → Coordinator.Pause）
     public bool RememberPassword { get; set; } = true;   // 保存密码开关
     public bool HideOnStartup { get; set; }              // 启动时隐藏窗口（只进托盘）—— 2.0 起默认关闭
-    public bool HotspotEnabled { get; set; }             // 自动开启热点（默认关）
-    public string HotspotSsid { get; set; } = "HFNU-Hotspot";
-    public string HotspotPassword { get; set; } = "87654321";
+    public bool HotspotEnabled { get; set; }             // 自动开启热点（默认关，名称/密码沿用系统当前热点配置）
 }
