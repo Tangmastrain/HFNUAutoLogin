@@ -115,6 +115,14 @@ public sealed class MainWindow : Form
         _credStore = credStore;
         _tray = tray;
 
+        // 高分辨率适配：仿设计器模式 —— 挂起布局期间以 96 DPI（100%）为设计基准构建全部控件，
+        // ResumeLayout(true) 时由 WinForms 按「实际 DPI / 96」一次性整体缩放
+        //（窗体尺寸、固定像素行高、内边距、自绘控件尺寸）。点值字体本身随 DPI 渲染，
+        // 与缩放后的像素布局天然一致；100% 屏缩放系数为 1，布局不变。
+        // 注意 AutoScaleDimensions 必须在布局挂起期间赋值：否则赋值瞬间会以空窗体
+        // 提前触发一次缩放，后续添加的控件与 ClientSize 都不会被缩放（高分屏文字溢出）。
+        SuspendLayout();
+
         Text = "合师锦绣";
         FormBorderStyle = FormBorderStyle.None;
         MaximizeBox = false;
@@ -145,6 +153,10 @@ public sealed class MainWindow : Form
 
         WireToggles();
         WireButtons();
+
+        // 布局构建完毕：恢复布局并按「实际 DPI / 96」执行整体缩放（见构造函数开头注释）
+        AutoScaleDimensions = new SizeF(96F, 96F);
+        ResumeLayout(true);
 
         _clockTimer.Tick += (_, _) => TickClock();
         _clockTimer.Start();
@@ -379,9 +391,12 @@ public sealed class MainWindow : Form
 
     private Control BuildToggleGrid()
     {
+        // 高分辨率适配注意：此网格必须 Dock=Fill 撑满外层单元格 —— AutoSize 网格的
+        // 百分比列在 DPI 缩放后会按内容重新测量导致宽度塌缩（卡片缩成一小块、文字被裁掉）。
         var grid = new TableLayoutPanel
         {
             ColumnCount = 2,
+            Dock = DockStyle.Fill,
             AutoSize = true,
             BackColor = Color.White,
             Margin = new Padding(0, 4, 0, 4),
@@ -403,10 +418,12 @@ public sealed class MainWindow : Form
                 Dock = DockStyle.Fill,
                 ColumnCount = 2,
                 RowCount = 1,
+                AutoSize = true,
                 BackColor = UiTheme.ToggleCard,
                 Margin = new Padding(0),
             };
-            inner.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 62));
+            // 开关列用 AutoSize（跟随开关实际尺寸，不依赖固定像素被缩放后的巧合）
+            inner.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             inner.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             tg.Anchor = AnchorStyles.Left;
             tg.Margin = new Padding(12, 0, 0, 0);

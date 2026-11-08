@@ -29,6 +29,10 @@ public sealed class SettingsForm : Form
         _cfgStore = cfgStore;
         _coord = coord;
 
+        // 高分辨率适配：同 MainWindow —— 布局挂起期间以 96 DPI 为设计基准构建，
+        // 结尾 ResumeLayout(true) 时按「实际 DPI / 96」整体缩放（详见 MainWindow 注释）
+        SuspendLayout();
+
         Text = "高级设置";
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
@@ -36,8 +40,10 @@ public sealed class SettingsForm : Form
         ShowInTaskbar = false;
         StartPosition = FormStartPosition.CenterParent;
         AutoScaleMode = AutoScaleMode.Dpi;
-        AutoSize = true;
-        AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        // 高分辨率适配：不用 AutoSize 窗体 —— AutoSize 链条的宽度取决于百分比列的
+        // 最小内容宽度，DPI 缩放后测量失效会把输入框压扁。改用显式 96 DPI 设计尺寸，
+        // 随 AutoScaleDimensions(96) 基准整体缩放（200% 屏 → 960×1000）。
+        ClientSize = new Size(480, 430);
         Font = new Font("Microsoft YaHei UI", 9.75F);
         BackColor = UiTheme.Background;
 
@@ -72,9 +78,14 @@ public sealed class SettingsForm : Form
             Padding = new Padding(16),
             BackColor = UiTheme.Background,
             ColumnCount = 1,
-            AutoSize = true,
         };
         root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        // 三块内容行 + 末尾弹性行（吸收窗体多余高度，避免内容行被拉伸）
+        root.RowCount = 4;
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         // ---- Portal 网络卡片 ----
         var net = UiTheme.MakeCard("Portal 网络（校园网认证参数）");
@@ -107,9 +118,13 @@ public sealed class SettingsForm : Form
         root.Controls.Add(flow);
 
         Controls.Add(root);
+
+        // 布局构建完毕：恢复布局并按「实际 DPI / 96」执行整体缩放（见构造函数开头注释）
+        AutoScaleDimensions = new SizeF(96F, 96F);
+        ResumeLayout(true);
     }
 
-    /// <summary>卡片内两列表格：左标签（固定 120）+ 右输入（自适应拉满）。</summary>
+    /// <summary>卡片内两列表格：左标签（AutoSize 跟随文字，DPI 缩放安全）+ 右输入（自适应拉满）。</summary>
     private static TableLayoutPanel MakeTable()
     {
         var t = new TableLayoutPanel
@@ -120,7 +135,8 @@ public sealed class SettingsForm : Form
             BackColor = UiTheme.Card,
             Padding = new Padding(4, 2, 4, 4),
         };
-        t.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
+        // 标签列不用固定像素：高分屏缩放后固定列宽不变而文字变宽，会挤压/截断标签
+        t.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         return t;
     }

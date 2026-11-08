@@ -25,4 +25,17 @@
       <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}" />
     </application>
   </compatibility>
+
+  <!--
+    高分辨率适配（v2.0.5）：进程级逐显示器 DPI 感知（PerMonitorV2，Win10 1703+）。
+    清单声明在 .NET 运行时启动前即生效（提权/UAC 场景下也可靠），与 csproj 的
+    ApplicationHighDpiMode=PerMonitorV2、各窗体 AutoScaleMode.Dpi 三层一致。
+    dpiAware=true/PM 是旧系统（Win8.1）的回退声明，会被 PerMonitorV2 覆盖。
+  -->
+  <application xmlns="urn:schemas-microsoft-com:asm.v3">
+    <windowsSettings>
+      <dpiAware xmlns="http://schemas.microsoft.com/SMI/2005/WindowsSettings">true/PM</dpiAware>
+      <dpiAwareness xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">PerMonitorV2</dpiAwareness>
+    </windowsSettings>
+  </application>
 </assembly>

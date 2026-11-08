@@ -3,6 +3,9 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <!-- 高分辨率适配：PerMonitorV2 逐显示器 DPI 感知，配合 app.manifest 的 dpiAwareness 声明。
+         各窗体 AutoScaleMode.Dpi 按实际 DPI 缩放，高分屏不再被 DWM 位图拉伸模糊。 -->
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>

@@ -26,6 +26,14 @@ internal static class Program
             return;
         }
 
+        // 诊断入口（离线截图核对布局用）：--shotdlg <png绝对路径> 渲染高级设置窗口
+        int shotDlgIdx = Array.IndexOf(args, "--shotdlg");
+        if (shotDlgIdx >= 0 && shotDlgIdx + 1 < args.Length)
+        {
+            RunShotDialogMode(args[shotDlgIdx + 1]);
+            return;
+        }
+
         // 开机模式（v2.0.2）：系统启动即无界面登录，不等用户登录 Windows。
         // 由计划任务（ONSTART / SYSTEM）拉起：--boot <安装用户的数据目录>。
         int bootIdx = Array.IndexOf(args, "--boot");
@@ -56,6 +64,39 @@ internal static class Program
         SynchronizationContext.SetSynchronizationContext(new WindowsFormsSynchronizationContext());
 
         Application.Run(new TrayContext());
+    }
+
+    /// <summary>
+    /// --shotdlg 诊断模式：构造高级设置窗口 → Show → 泵消息 1.5s 等待首次绘制 →
+    /// DrawToBitmap 存 PNG → 真退出。用于核对其在高分屏下的布局。
+    /// </summary>
+    private static void RunShotDialogMode(string path)
+    {
+        ApplicationConfiguration.Initialize();
+        SynchronizationContext.SetSynchronizationContext(new WindowsFormsSynchronizationContext());
+
+        var cfgStore = new AppConfigStore();
+        var credStore = new CredentialStore();
+        var auth = new PortalAuthProvider(cfgStore.Load);
+        var coord = new Coordinator(auth, cfgStore, credStore);
+
+        using var dlg = new SettingsForm(cfgStore, coord);
+        dlg.Show();
+
+        var deadline = DateTime.Now.AddMilliseconds(1500);
+        while (DateTime.Now < deadline)
+        {
+            Application.DoEvents();
+            Thread.Sleep(40);
+        }
+
+        using var bmp = new Bitmap(Math.Max(1, dlg.Width), Math.Max(1, dlg.Height));
+        dlg.DrawToBitmap(bmp, new Rectangle(0, 0, bmp.Width, bmp.Height));
+        string full = Path.GetFullPath(path);
+        string? dir = Path.GetDirectoryName(full);
+        if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+        bmp.Save(full, ImageFormat.Png);
+        Logger.Instance.Info("SHOTDLG 已保存：" + full);
     }
 
     /// <summary>
