@@ -41,8 +41,8 @@ desktop.ini
 
 # release 上传脚本产物
 .release-notes.md
-CampusAutoLogin2.0/publish-fd/
-CampusAutoLogin2.0/publish-fd-dir/
+HFNUautologin/publish-fd/
+HFNUautologin/publish-fd-dir/
 
 # 本地文档，不进公开仓库
 AI开发交接包.md

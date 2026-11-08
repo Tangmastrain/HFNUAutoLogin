@@ -109,7 +109,7 @@ internal static class Program
     {
         // 必须在任何人触碰 Logger 之前设置：Logger 单例构造时读它决定日志目录
         Environment.SetEnvironmentVariable(
-            "CampusAutoLogin2.0_DataDir", dataDir, EnvironmentVariableTarget.Process);
+            "HFNUautologin_DataDir", dataDir, EnvironmentVariableTarget.Process);
 
         AppDomain.CurrentDomain.UnhandledException +=
             (_, e) => Logger.Instance.Error("BOOT 未处理异常：" + e.ExceptionObject);

@@ -7,7 +7,7 @@
 > 认证服务器为 `192.168.1.100`，协议为华为 **ePortal (ACSetting)** Web Portal。
 > 其他校区、其他学校的认证地址与协议参数均不相同，**直接拿去用不会有任何效果**。
 
-![主界面](CampusAutoLogin2.0/shots/main-connected.png)
+![主界面](HFNUautologin/shots/main-connected.png)
 
 ---
 
@@ -59,7 +59,7 @@
 3. 按需开启「开机自启」
 4. 之后它就在托盘里待着，掉线自动重连
 
-配置与日志位置：`%APPDATA%\CampusAutoLogin2.0\`
+配置与日志位置：`%APPDATA%\HFNUautologindata\`
 
 ### 权限说明
 
@@ -85,11 +85,11 @@
 
 ```bash
 # 框架依赖版（体积小，需 .NET 8 Desktop Runtime）
-dotnet publish CampusAutoLogin2.0/CampusAutoLogin2.0.csproj \
+dotnet publish HFNUautologin/CampusAutoLogin2.0.csproj \
   -c Release -r win-x64 --self-contained false -o out
 
 # 自包含单文件版（约 75 MB，免运行时）
-dotnet publish CampusAutoLogin2.0/CampusAutoLogin2.0.csproj \
+dotnet publish HFNUautologin/CampusAutoLogin2.0.csproj \
   -c Release -r win-x64 --self-contained true \
   -p:PublishSingleFile=true \
   -p:IncludeNativeLibrariesForSelfExtract=true \
@@ -105,7 +105,7 @@ dotnet publish CampusAutoLogin2.0/CampusAutoLogin2.0.csproj \
 ## 目录结构
 
 ```
-CampusAutoLogin2.0/
+HFNUautologin/
 ├── Auth/          # 认证协议实现（ePortal ACSetting）
 ├── Core/          # 协调器、连通性监控、重试策略
 ├── Platform/      # 自启、托盘图标、热管理、日志

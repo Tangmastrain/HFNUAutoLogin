@@ -22,7 +22,7 @@ public sealed class AuthResult
     public static AuthResult BizFail(string msg) => new() { Success = false, Message = msg, FailureKind = AuthFailureKind.Business };
 }
 
-/// <summary>应用配置（%APPDATA%\CampusAutoLogin2.0\config.json，不含密码）。旧文件缺字段自动取默认值。</summary>
+/// <summary>应用配置（%APPDATA%\HFNUautologindata\config.json，不含密码）。旧文件缺字段自动取默认值。</summary>
 public sealed class AppConfig
 {
     public string PortalHost { get; set; } = "192.168.1.100";

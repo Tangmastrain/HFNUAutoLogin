@@ -44,7 +44,7 @@ public static class AutoStart
 
         string delay = $"{Math.Max(0, delaySec) / 60:0000}:{Math.Max(0, delaySec) % 60:00}";
         string dataDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CampusAutoLogin2.0");
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "HFNUautologindata");
 
         // ---- 轨道①：开机任务（ONSTART / SYSTEM，无界面 --boot 模式）----
         // 命令行：exe --boot 数据目录；/TR 内层引号转义，路径含空格必须带引号

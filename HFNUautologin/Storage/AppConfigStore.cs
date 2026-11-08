@@ -4,7 +4,7 @@ using CampusAutoLogin.Platform;
 
 namespace CampusAutoLogin.Storage;
 
-/// <summary>配置读写：%APPDATA%\CampusAutoLogin2.0\config.json（不含密码）。可传 dataDir 覆盖（--boot 模式用）。</summary>
+/// <summary>配置读写：%APPDATA%\HFNUautologindata\config.json（不含密码）。可传 dataDir 覆盖（--boot 模式用）。</summary>
 public sealed class AppConfigStore
 {
     private readonly string _path;
@@ -15,7 +15,7 @@ public sealed class AppConfigStore
         // 独立配置目录：与旧版 CampusAutoLogin 互不干扰，可并存
         // --boot 模式以 SYSTEM 运行、无用户 %APPDATA%，直接读安装用户的数据目录（SYSTEM 有权限）
         var dir = dataDir ?? Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CampusAutoLogin2.0");
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "HFNUautologindata");
         Directory.CreateDirectory(dir);
         _path = Path.Combine(dir, "config.json");
     }

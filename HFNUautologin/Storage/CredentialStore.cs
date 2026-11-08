@@ -29,7 +29,7 @@ public sealed class CredentialStore
     {
         // --boot 模式以 SYSTEM 运行、无用户 %APPDATA%，直接用任务参数传入的安装用户数据目录
         _dir = dataDir ?? Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CampusAutoLogin2.0");
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "HFNUautologindata");
         Directory.CreateDirectory(_dir);
         _bootMode = bootMode;
         _path = Path.Combine(_dir, bootMode ? BootFile : MainFile);

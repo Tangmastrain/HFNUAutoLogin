@@ -3,7 +3,7 @@ using System.Diagnostics;
 namespace CampusAutoLogin.Platform;
 
 /// <summary>
-/// 滚动日志：%APPDATA%\CampusAutoLogin2.0\logs\app.log，单文件 1MB，保留 5 个。
+/// 滚动日志：%APPDATA%\HFNUautologindata\logs\app.log，单文件 1MB，保留 5 个。
 /// 格式：[时间] 级别 事件。绝不记录密码。
 /// </summary>
 public sealed class Logger
@@ -21,9 +21,9 @@ public sealed class Logger
     {
         // --boot 模式（SYSTEM 会话）没有用户的 %APPDATA%，Program.RunBootMode 在触碰
         // Logger 之前把安装用户的数据目录写入本环境变量，这里优先读取。
-        var overrideDir = Environment.GetEnvironmentVariable("CampusAutoLogin2.0_DataDir");
+        var overrideDir = Environment.GetEnvironmentVariable("HFNUautologin_DataDir");
         var baseDir = string.IsNullOrEmpty(overrideDir)
-            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CampusAutoLogin2.0")
+            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "HFNUautologindata")
             : overrideDir;
         _dir = Path.Combine(baseDir, "logs");
         Directory.CreateDirectory(_dir);
