@@ -39,10 +39,12 @@ __pycache__/
 Thumbs.db
 desktop.ini
 
-# release 上传脚本产物
+# release 发布说明草稿（本地工作文件，不进公开仓库）
 .release-notes.md
-HFNUautologin/publish-fd/
-HFNUautologin/publish-fd-dir/
+
+# 打包产物目录
+publish-fd/
+publish-fd-dir/
 
 # 本地文档，不进公开仓库
 AI开发交接包.md

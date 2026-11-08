@@ -7,7 +7,7 @@
 > 认证服务器为 `192.168.1.100`，协议为华为 **ePortal (ACSetting)** Web Portal。
 > 其他校区、其他学校的认证地址与协议参数均不相同，**直接拿去用不会有任何效果**。
 
-![主界面](HFNUautologin/shots/main-connected.png)
+![主界面](shots/main-connected.png)
 
 ---
 
@@ -41,14 +41,9 @@
 
 | 文件 | 大小 | 说明 |
 |---|---|---|
-| `HFNUAutoLogin-fd-win-x64.zip` | 6.8 MB | **框架依赖版**（推荐），解压后运行 `CampusAutoLogin2.0.exe` |
-| `HFNUAutoLogin-selfcontained-win-x64.exe` | 74.7 MB | **自包含单文件版**，免运行时，双击即用 |
+| `HFNUautologin.exe` | ~75 MB | **自包含单文件版**，免运行时，双击即用 |
 
-> **框架依赖版需要 .NET 8 Desktop Runtime**。没有的话：
-> - 命令行一键装：`winget install Microsoft.DotNet.DesktopRuntime.8`
-> - 或手动下载：<https://dotnet.microsoft.com/download/dotnet/8.0>（选 **Desktop Runtime** x64）
-
-> 系统要求：Windows 10 1809 (build 17763) 或更高。
+> 系统要求：Windows 10 1809 (build 17763) 或更高。运行时已打包进 exe，**无需安装 .NET**。
 
 ---
 
@@ -84,16 +79,16 @@
 ## 从源码构建
 
 ```bash
-# 框架依赖版（体积小，需 .NET 8 Desktop Runtime）
-dotnet publish HFNUautologin/CampusAutoLogin2.0.csproj \
-  -c Release -r win-x64 --self-contained false -o out
-
-# 自包含单文件版（约 75 MB，免运行时）
-dotnet publish HFNUautologin/CampusAutoLogin2.0.csproj \
+# 自包含单文件版（约 75 MB，免运行时；发布到 Releases 即此版本）
+dotnet publish CampusAutoLogin2.0.csproj \
   -c Release -r win-x64 --self-contained true \
   -p:PublishSingleFile=true \
   -p:IncludeNativeLibrariesForSelfExtract=true \
   -p:EnableCompressionInSingleFile=true -o out
+
+# 框架依赖版（体积小，需 .NET 8 Desktop Runtime，仅供本地调试）
+dotnet publish CampusAutoLogin2.0.csproj \
+  -c Release -r win-x64 --self-contained false -o out
 ```
 
 需要 .NET 8 SDK。
@@ -105,7 +100,6 @@ dotnet publish HFNUautologin/CampusAutoLogin2.0.csproj \
 ## 目录结构
 
 ```
-HFNUautologin/
 ├── Auth/          # 认证协议实现（ePortal ACSetting）
 ├── Core/          # 协调器、连通性监控、重试策略
 ├── Platform/      # 自启、托盘图标、热管理、日志
