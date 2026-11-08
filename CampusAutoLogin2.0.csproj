@@ -12,7 +12,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>HFNUautologin</AssemblyName>
     <RootNamespace>CampusAutoLogin</RootNamespace>
-    <Version>2.0.6</Version>
+    <Version>2.0.7</Version>
     <ApplicationIcon>app.ico</ApplicationIcon>
     <!-- v2.0.4：以管理员身份运行的清单直接编译进 exe（替代绑定路径的注册表 RUNASADMIN） -->
     <ApplicationManifest>app.manifest</ApplicationManifest>
