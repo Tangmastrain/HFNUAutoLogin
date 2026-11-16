@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -8,16 +7,18 @@ using CampusAutoLogin.Core;
 namespace CampusAutoLogin.Auth;
 
 /// <summary>
-/// 华为 ePortal (ACSetting) 认证实现。
-/// 已实证：密码明文直传（服务端 enMd5=0），单次 POST 完成认证，无握手。
-/// 动态参数 wlanuserip/wlanacip/wlanacname/mac 每次登录前从 AC 劫持跳转中提取。
+/// 华为 ePortal 认证实现（2026-11-16 认证页改版）。
+/// 旧接口 /eportal/?c=ACSetting&a=Login（POST 表单）已停用，
+/// 现走新接口 /eportal/portal/login（GET + JSONP，dr1003 回调），密码明文直传。
+/// 动态参数 wlan_user_ip/wlan_ac_ip/wlan_ac_name/mac 每次登录前从 AC 劫持跳转中提取；
+/// 劫持 Location 可能是旧命名（wlanuserip）或新命名（wlan_user_ip），两者都兼容。
 /// </summary>
 public sealed class PortalAuthProvider : IAuthProvider
 {
     private const int EportalPort = 801;
     private const string UserAgent =
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) " +
-        "Chrome/155.0.0.0 Safari/537.36 Edg/155.0.0.0";
+        "Chrome/157.0.0.0 Safari/537.36 Edg/157.0.0.0";
 
     // 用于触发 ACL 劫持跳转的探测地址（目的是拿到 Portal 动态参数）
     private static readonly string[] ProbeUrls =
@@ -40,11 +41,24 @@ public sealed class PortalAuthProvider : IAuthProvider
     // 绝不能只匹配「成功」二字，必须匹配完整词。
     private static readonly string[] SuccessKeys =
     {
-        "登录成功", "Loginsuccessfully", "Loginsucceeded", "loginsuccess",
+        "登录成功", "认证成功", "Loginsuccessfully", "Loginsucceeded", "loginsuccess",
         "IP已经在线", "IPalreadyonline", "\"result\":1", "'result':1", "\"result\":\"1\"",
     };
 
-    private static readonly string[] ParamKeys = { "wlanuserip", "wlanacip", "wlanacname", "mac" };
+    // 旧命名（302 劫持 Location 常见）+ 新命名（portal 页 v4.2.1 版式），统一提取后归一化
+    private static readonly string[] ParamKeys =
+    {
+        "wlanuserip", "wlanacip", "wlanacname", "mac",
+        "wlan_user_ip", "wlan_ac_ip", "wlan_ac_name", "wlan_user_mac",
+    };
+
+    private static readonly Dictionary<string, string[]> ParamAliases = new()
+    {
+        ["wlanuserip"] = new[] { "wlanuserip", "wlan_user_ip" },
+        ["wlanacip"] = new[] { "wlanacip", "wlan_ac_ip" },
+        ["wlanacname"] = new[] { "wlanacname", "wlan_ac_name" },
+        ["mac"] = new[] { "mac", "wlan_user_mac" },
+    };
 
     private readonly HttpClient _noRedirect;
     private readonly HttpClient _plain;
@@ -82,41 +96,22 @@ public sealed class PortalAuthProvider : IAuthProvider
         string ip = Str(p, "wlanuserip", GetLocalIp(cfg.PortalHost));
         string acip = Str(p, "wlanacip", cfg.WlanAcIp);
         string acname = Str(p, "wlanacname", string.IsNullOrEmpty(cfg.WlanAcName) ? "me60" : cfg.WlanAcName);
-        string mac = Str(p, "mac", GetLocalMac());
+        string mac = NormalizeMac(Str(p, "mac", "000000000000"));
 
-        var url = $"http://{cfg.PortalHost}:{EportalPort}/eportal/" +
-                  $"?c=ACSetting&a=Login&protocol=http:&hostname={Uri.EscapeDataString(cfg.PortalHost)}" +
-                  $"&iTermType=1&wlanuserip={Uri.EscapeDataString(ip)}&wlanacip={Uri.EscapeDataString(acip)}" +
-                  $"&wlanacname={Uri.EscapeDataString(acname)}&mac={Uri.EscapeDataString(mac)}" +
-                  $"&ip={Uri.EscapeDataString(ip)}" +
-                  "&enAdvert=0&queryACIP=0&loginMethod=1";
+        // 2026-11-16 改版：/eportal/portal/login，GET + JSONP（dr1003 回调），
+        // 与新版认证页抓包逐字一致；user_password 就是密码原文，无需任何加密。
+        // v 参数为缓存穿透随机值，服务端不校验。
+        var url = $"http://{cfg.PortalHost}:{EportalPort}/eportal/portal/login" +
+                  $"?callback=dr1003&login_method=1" +
+                  $"&user_account={Uri.EscapeDataString(BuildUserAccount(cred.Username, cfg.AccountSuffix))}" +
+                  $"&user_password={Uri.EscapeDataString(cred.Password)}" +
+                  $"&wlan_user_ip={Uri.EscapeDataString(ip)}&wlan_user_ipv6=" +
+                  $"&wlan_user_mac={Uri.EscapeDataString(mac)}" +
+                  $"&wlan_ac_ip={Uri.EscapeDataString(acip)}&wlan_ac_name={Uri.EscapeDataString(acname)}" +
+                  $"&jsVersion=4.2.1&terminal_type=1&lang=zh-cn&v={Random.Shared.Next(1000, 9999)}&lang=zh";
 
-        // 15 个表单字段，与抓包逐字一致；upass 就是密码原文，无需任何加密
-        var form = new Dictionary<string, string>
-        {
-            ["DDDDD"] = cred.Username,
-            ["upass"] = cred.Password,
-            ["R1"] = "0",
-            ["R2"] = "0",
-            ["R6"] = "0",
-            ["para"] = "00",
-            ["0MKKey"] = cred.Password, // 老版本兼容字段，值必须与 upass 相同
-            ["buttonClicked"] = "",
-            ["redirect_url"] = "",
-            ["err_flag"] = "",
-            ["username"] = "",
-            ["password"] = "",
-            ["user"] = "",
-            ["cmd"] = "",
-            ["Login"] = "",
-        };
-
-        using var req = new HttpRequestMessage(HttpMethod.Post, url)
-        {
-            Content = new FormUrlEncodedContent(form),
-        };
+        using var req = new HttpRequestMessage(HttpMethod.Get, url);
         req.Headers.TryAddWithoutValidation("User-Agent", UserAgent);
-        req.Headers.TryAddWithoutValidation("Origin", $"http://{cfg.PortalHost}");
         req.Headers.Referrer = new Uri($"http://{cfg.PortalHost}/");
         // 字段名叫 md5_login2，实际是「用户名|密码」明文拼接，| URL 编码为 %7C
         req.Headers.TryAddWithoutValidation("Cookie",
@@ -165,13 +160,21 @@ public sealed class PortalAuthProvider : IAuthProvider
         string ip = Str(p, "wlanuserip", GetLocalIp(cfg.PortalHost));
         string acip = Str(p, "wlanacip", cfg.WlanAcIp);
         string acname = Str(p, "wlanacname", string.IsNullOrEmpty(cfg.WlanAcName) ? "me60" : cfg.WlanAcName);
+        string mac = NormalizeMac(Str(p, "mac", "000000000000"));
 
-        var url = $"http://{cfg.PortalHost}:{EportalPort}/eportal/" +
-                  $"?c=ACSetting&a=Logout&protocol=http:&hostname={Uri.EscapeDataString(cfg.PortalHost)}" +
-                  $"&wlanuserip={Uri.EscapeDataString(ip)}&wlanacip={Uri.EscapeDataString(acip)}" +
-                  $"&wlanacname={Uri.EscapeDataString(acname)}&ip={Uri.EscapeDataString(ip)}";
+        // 2026-11-16 新版注销抓包：/eportal/portal/logout（GET + JSONP，dr1004 回调）。
+        // 关键：user_account/user_password 是认证页注销链接里的固定占位值（drcom/123），
+        // 服务端靠 wlan_user_ip 定位会话，与登录账号无关 —— 绝不能传真实账号。
+        var url = $"http://{cfg.PortalHost}:{EportalPort}/eportal/portal/logout" +
+                  $"?callback=dr1004&login_method=1" +
+                  $"&user_account=drcom&user_password=123" +
+                  $"&ac_logout=0&register_mode=0" +
+                  $"&wlan_user_ip={Uri.EscapeDataString(ip)}&wlan_user_ipv6=&wlan_vlan_id=0" +
+                  $"&wlan_user_mac={Uri.EscapeDataString(mac)}" +
+                  $"&wlan_ac_ip={Uri.EscapeDataString(acip)}&wlan_ac_name={Uri.EscapeDataString(acname)}" +
+                  $"&jsVersion=4.2.1&v={Random.Shared.Next(1000, 9999)}&lang=zh";
 
-        // 注销为 GET（与抓包及 protocol/portal_login.py 一致）；响应体读掉以释放连接，但不作为判据
+        // 注销为 GET（与新版认证页抓包一致）；响应体读掉以释放连接，但不作为判据
         using var req = new HttpRequestMessage(HttpMethod.Get, url);
         req.Headers.TryAddWithoutValidation("User-Agent", UserAgent);
         req.Headers.Referrer = new Uri($"http://{cfg.PortalHost}/");
@@ -263,11 +266,26 @@ public sealed class PortalAuthProvider : IAuthProvider
     {
         var found = new Dictionary<string, string>();
         if (string.IsNullOrEmpty(text)) return found;
+
+        var raw = new Dictionary<string, string>();
         foreach (var key in ParamKeys)
         {
             var m = Regex.Match(text, key + @"=([^&""'<>\s;]+)");
             if (m.Success)
-                found[key] = Uri.UnescapeDataString(m.Groups[1].Value);
+                raw[key] = Uri.UnescapeDataString(m.Groups[1].Value);
+        }
+
+        // 新旧命名归一化为内部规范键，调用方只需认 wlanuserip / wlanacip / wlanacname / mac
+        foreach (var (canonical, aliases) in ParamAliases)
+        {
+            foreach (var alias in aliases)
+            {
+                if (raw.TryGetValue(alias, out var v) && !string.IsNullOrEmpty(v))
+                {
+                    found[canonical] = v;
+                    break;
+                }
+            }
         }
         return found;
     }
@@ -326,46 +344,20 @@ public sealed class PortalAuthProvider : IAuthProvider
     }
 
     /// <summary>
-    /// 本机物理网卡 MAC，格式 AA-BB-CC-DD-EE-FF（探测不到时的回退）。
-    /// 优先选「非虚拟且有网关」的网卡：Hyper-V/WSL/VMware 的虚拟网卡同为 Ethernet 类型，
-    /// 多网卡机器上选错会导致登录/注销定位到错误会话。
+    /// 新版接口的 user_account 固定为「,0,账号@运营商」（示例：,0,262005014@telecom）。
+    /// 账号已自带 @ 时不重复追加；运营商后缀（config.AccountSuffix）为空时退化为「,0,账号」。
     /// </summary>
-    private static string GetLocalMac()
+    private static string BuildUserAccount(string username, string suffix)
     {
-        try
-        {
-            NetworkInterface? fallback = null;
-            foreach (var nic in NetworkInterface.GetAllNetworkInterfaces())
-            {
-                if (nic.OperationalStatus != OperationalStatus.Up) continue;
-                if (nic.NetworkInterfaceType is NetworkInterfaceType.Loopback or NetworkInterfaceType.Tunnel) continue;
-                if (IsVirtualAdapter(nic)) continue;
-                fallback ??= nic; // 第一个非虚拟网卡作保底
-                if (nic.GetIPProperties().GatewayAddresses.Count > 0)
-                    return FormatMac(nic.GetPhysicalAddress()); // 有网关 = 真正承载默认路由的物理网卡
-            }
-            if (fallback is not null)
-                return FormatMac(fallback.GetPhysicalAddress());
-        }
-        catch { }
-        return "00-00-00-00-00-00";
+        if (username.Contains('@')) return ",0," + username;
+        return string.IsNullOrEmpty(suffix) ? ",0," + username : $",0,{username}@{suffix}";
     }
 
-    /// <summary>按网卡描述过滤常见虚拟适配器（大小写不敏感）。</summary>
-    private static bool IsVirtualAdapter(NetworkInterface nic)
-    {
-        string desc = nic.Description;
-        return desc.Contains("Hyper-V", StringComparison.OrdinalIgnoreCase)     // Hyper-V 虚拟交换机/WSL
-            || desc.Contains("Virtual", StringComparison.OrdinalIgnoreCase)   // VMware/VirtualBox/vEthernet
-            || desc.Contains("TAP", StringComparison.OrdinalIgnoreCase)       // OpenVPN TAP
-            || desc.Contains("WSL", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static string FormatMac(PhysicalAddress pa)
-    {
-        var ha = pa.GetAddressBytes();
-        return ha.Length == 6 ? string.Join("-", ha.Select(b => b.ToString("X2"))) : "00-00-00-00-00-00";
-    }
+    /// <summary>
+    /// 统一 MAC 形态：去掉 - 与 : 分隔符。新版认证页直接传零值 000000000000（抓包实证），
+    /// 探测到劫持 URL 携带 MAC 时归一化后透传。
+    /// </summary>
+    private static string NormalizeMac(string mac) => mac.Replace("-", "").Replace(":", "");
 
     private static string Str(Dictionary<string, string> p, string key, string fallback) =>
         p.TryGetValue(key, out var v) && !string.IsNullOrEmpty(v) ? v : fallback;

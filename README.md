@@ -4,7 +4,9 @@
 
 > **仅适用于合肥师范学院锦绣校区。**
 >
-> 认证服务器为 `192.168.1.100`，协议为华为 **ePortal (ACSetting)** Web Portal。
+> 认证服务器为 `192.168.1.100`，协议为华为 **ePortal** Web Portal。
+> （2026-11-16 认证页改版：登录/注销由旧 `?c=ACSetting&a=Login|Logout` 接口切换为
+> 新 `eportal/portal/login|logout` GET + JSONP 接口，v3.0 起全面适配。）
 > 其他校区、其他学校的认证地址与协议参数均不相同，**直接拿去用不会有任何效果**。
 
 ![主界面](shots/main-connected.png)
@@ -18,7 +20,7 @@
 | 学校 | 合肥师范学院（HFNU） |
 | 校区 | **锦绣校区** |
 | 认证服务器 | `192.168.1.100:801` |
-| 协议 | 华为 ePortal (ACSetting) |
+| 协议 | 华为 ePortal（`portal/login|logout`，v3.0 适配新版接口） |
 
 > ⚠️ 不要在合肥师范学院其他校区使用，也不要用于其他学校 —— 参数对不上，程序不会工作。
 
@@ -55,6 +57,10 @@
 4. 之后它就在托盘里待着，掉线自动重连
 
 配置与日志位置：`%APPDATA%\HFNUautologindata\`
+
+> 新版接口的账号格式为 `,0,账号@运营商`。默认运营商后缀为 `telecom`（电信），
+> 如使用联通/移动等其他出口，请在 `%APPDATA%\HFNUautologindata\config.json` 中
+> 修改 `AccountSuffix` 字段（如 `unicom`）；账号本身已带 `@` 时后缀不生效。
 
 ### 权限说明
 

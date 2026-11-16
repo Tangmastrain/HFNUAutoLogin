@@ -40,4 +40,9 @@ public sealed class AppConfig
     public bool RememberPassword { get; set; } = true;   // 保存密码开关
     public bool HideOnStartup { get; set; }              // 启动时隐藏窗口（只进托盘）—— 2.0 起默认关闭
     public bool HotspotEnabled { get; set; }             // 自动开启热点（默认关，名称/密码沿用系统当前热点配置）
+
+    // ---- v2.0.8 新增（2026-11-16 认证页改版）----
+    // 新接口 user_account 固定为「,0,账号@运营商」；运营商后缀按需调整（telecom/unicom/...）。
+    // 旧 config.json 缺该字段时自动取默认值，无需迁移。
+    public string AccountSuffix { get; set; } = "telecom";
 }
